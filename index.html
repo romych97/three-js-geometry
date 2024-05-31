@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Scene</title>
+    <style>
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+
+        // scene init
+        let scene = new THREE.Scene();
+        let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
+        let renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        renderer.shadowMap.enabled = true;
+
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let isDragging = false;
+        let initialMouse = { x: 0, y: 0 };
+        let initialDoorDimensions = { width: 1, height: 2 };
+
+        // controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(3, 4, 3);  // position the camera
+
+        const geometry1 = new THREE.BoxGeometry();
+        const material1 = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry1, material1);
+        cube.position.set(-2, 0.5, 0);
+        cube.castShadow = true;
+        scene.add(cube);
+
+        const geometry2 = new THREE.SphereGeometry(1, 32, 32);
+        const material2 = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+        const sphere = new THREE.Mesh(geometry2, material2);
+        sphere.position.set(2, 1, 0);
+        sphere.castShadow = true;
+        scene.add(sphere);
+
+        // door setup
+        let doorWidth = 1;
+        let doorHeight = 2;
+        let doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, 0.1);
+        let doorMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+        let door = new THREE.Mesh(doorGeometry, doorMaterial);
+        door.position.set(0, doorHeight / 2, 0);
+        door.castShadow = true;
+        scene.add(door);
+
+        function onPointerDown(event) {
+            event.preventDefault();
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([door]);
+
+            if (intersects.length > 0) {
+                isDragging = true;
+                controls.enabled = false;  // Disable OrbitControls while dragging
+                initialMouse.x = event.clientX;
+                initialMouse.y = event.clientY;
+                initialDoorDimensions.width = doorWidth;
+                initialDoorDimensions.height = doorHeight;
+            }
+        }
+
+        function onPointerMove(event) {
+            if (isDragging) {
+                const deltaX = event.clientX - initialMouse.x;
+                const deltaY = initialMouse.y - event.clientY;
+
+                const newWidth = initialDoorDimensions.width + (deltaX / window.innerWidth) * initialDoorDimensions.width * 2;
+                const newHeight = initialDoorDimensions.height + (deltaY / window.innerHeight) * initialDoorDimensions.height * 2;
+
+                changeDoorDimensions(Math.max(1, newWidth), Math.max(1, newHeight));
+            }
+        }
+
+        function onPointerUp(event) {
+            if (isDragging) {
+                isDragging = false;
+                controls.enabled = true;  // re-enable orbitControls after dragging
+            }
+        }
+
+        function changeDoorDimensions(width, height) {
+            doorWidth = width;
+            doorHeight = height;
+            door.geometry.dispose();
+            door.geometry = new THREE.BoxGeometry(width, height, 0.1);
+            door.position.y = height / 2;
+        }
+
+        // light
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7.5);
+        light.castShadow = true;
+        scene.add(light);
+
+        const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
+        scene.add(ambientLight);
+
+        // environment
+        const groundGeometry = new THREE.PlaneGeometry(20, 20);
+        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        window.addEventListener('pointerdown', onPointerDown, false);
+        window.addEventListener('pointermove', onPointerMove, false);
+        window.addEventListener('pointerup', onPointerUp, false);
+
+        // animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+
+</html>
